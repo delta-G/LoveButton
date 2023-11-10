@@ -5,20 +5,52 @@
     Serial.println(t, HEX); \
   } while (false)
 
-
+#include "EventLinkInterrupt.h"
 // LPF is 1uF ceramic between pin 10 and Ground
 // pin 10 is PORT 1 pin 12 on Minima
 
+volatile boolean newData = false;
+volatile uint16_t sCounter = 0;
+volatile uint16_t rCounter = 0;
+
+int ctsurdEventLinkIndex = 0;
 
 void setup() {
   Serial.begin(115200);
   while (!Serial)
     ;
   Serial.println("\n\n\n*** Starting R4_CTSU_Test.ino***\n\n\n");
+
+  // Love pin is 204 == TS00
+  // set 204 pin to TS00 function
+  R_PFS->PORT[2].PIN[4].PmnPFS = (1 << R_PFS_PORT_PIN_PmnPFS_PMR_Pos) | (12 << R_PFS_PORT_PIN_PmnPFS_PSEL_Pos);
 }
 
 void loop() {
   handleSerial();
+  if (newData) {
+    newData = false;
+    noInterrupts();
+    uint32_t s = sCounter;
+    uint32_t r = rCounter;
+    interrupts();
+    Serial.print("Result : ");
+    Serial.print(s);
+    Serial.print(" : ");
+    Serial.print(r);
+    Serial.print(" : ");
+    Serial.println();
+  }
+}
+
+void CTSUWR_handler() {
+}
+
+void CTSURD_handler() {
+  resetEventLink(ctsurdEventLinkIndex);
+  sCounter = R_CTSU->CTSUSC;
+  rCounter = R_CTSU->CTSURC;
+  newData = true;
 }
 
 void initialCTSUsetup() {
@@ -82,6 +114,13 @@ void handlePacket(char *buf) {
           //enable CTSU input clock in MSTPCRC
           R_MSTP->MSTPCRC &= ~(1 << R_MSTP_MSTPCRC_MSTPC3_Pos);
           break;
+        case 104:
+          // attach the CTSURD handler
+          // CTSURD is event 0x43
+          // CTSUWR is event 0x42
+          // CTSUFN is event 0x44
+          ctsurdEventLinkIndex = attachEventLinkInterrupt(0x43, CTSURD_handler);
+          break;
         default:
           break;
       }
@@ -141,13 +180,13 @@ void handlePacket(char *buf) {
       R_CTSU->CTSUST = arg & 0xFF;
       break;
     case 19:
-      R_CTSU->CTSUSSC = arg & 0xFF;
+      R_CTSU->CTSUSSC = arg & 0xFFFF;
       break;
     case 20:
-      R_CTSU->CTSUSO0 = arg & 0xFF;
+      R_CTSU->CTSUSO0 = arg & 0xFFFF;
       break;
     case 21:
-      R_CTSU->CTSUSO1 = arg & 0xFF;
+      R_CTSU->CTSUSO1 = arg & 0xFFFF;
       break;
     default:
       break;
