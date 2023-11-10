@@ -14,16 +14,17 @@ volatile uint16_t sCounter = 0;
 volatile uint16_t rCounter = 0;
 
 int ctsurdEventLinkIndex = 0;
+int ctsuwrEventLinkIndex = 0;
+
+int ctsufnEventLinkIndex = 0;
 
 void setup() {
   Serial.begin(115200);
   while (!Serial)
     ;
   Serial.println("\n\n\n*** Starting R4_CTSU_Test.ino***\n\n\n");
-
-  // Love pin is 204 == TS00
-  // set 204 pin to TS00 function
-  R_PFS->PORT[2].PIN[4].PmnPFS = (1 << R_PFS_PORT_PIN_PmnPFS_PMR_Pos) | (12 << R_PFS_PORT_PIN_PmnPFS_PSEL_Pos);
+  initialCTSUsetup();
+  startCTSUmeasure();
 }
 
 void loop() {
@@ -40,10 +41,14 @@ void loop() {
     Serial.print(r);
     Serial.print(" : ");
     Serial.println();
+    // startCTSUmeasure();
   }
 }
 
 void CTSUWR_handler() {
+  resetEventLink(ctsuwrEventLinkIndex);
+  R_CTSU->CTSUMCH0 = 0;
+  R_CTSU->CTSUSO1 = 0x0F00;
 }
 
 void CTSURD_handler() {
@@ -51,23 +56,55 @@ void CTSURD_handler() {
   sCounter = R_CTSU->CTSUSC;
   rCounter = R_CTSU->CTSURC;
   newData = true;
+  startCTSUmeasure();
+}
+
+void startCTSUmeasure() {
+  R_CTSU->CTSUMCH0 = 0;
+  R_CTSU->CTSUCR0 = 1;
 }
 
 void initialCTSUsetup() {
   // Follow the flow chart Fig 41.9
   // Step 1: Discharge LPF (set TSCAP as OUTPUT LOW.)
+  R_PFS->PORT[1].PIN[12].PmnPFS = (1 << R_PFS_PORT_PIN_PmnPFS_PDR_Pos);
+  delay(1000);
 
   // Step 2: Setup I/O port PmnPFR registers
+  // Love pin is 204 == TS00
+  // set 204 pin to TS00 function
+  R_PFS->PORT[2].PIN[4].PmnPFS = (1 << R_PFS_PORT_PIN_PmnPFS_PMR_Pos) | (12 << R_PFS_PORT_PIN_PmnPFS_PSEL_Pos);
+  // set TSCAP pin to TSCAP function
+  R_PFS->PORT[1].PIN[12].PmnPFS = (1 << R_PFS_PORT_PIN_PmnPFS_PMR_Pos) | (12 << R_PFS_PORT_PIN_PmnPFS_PSEL_Pos);
 
   // Step 3: Enable CTSU in MSTPCRC bit MSTPC3 to 0
+  R_MSTP->MSTPCRC &= ~(1 << R_MSTP_MSTPCRC_MSTPC3_Pos);
 
   // Step 4: Set CTSU Power Supply (CTSUCR1 register)
+  R_CTSU->CTSUCR1 = 0;  // all 0's work for now
 
   // Step 5: Set CTSU Base Clock (CTSUCR1 and CTSUSO1 registers)
+  R_CTSU->CTSUSO1 = 0x0F00;
 
   // Step 6: Power On CTSU (set bits CTSUPON and CTSUCSW in CTSUCR1 at the same time)
+  R_CTSU->CTSUCR1 = 3;
 
   // Step 7: Wait for stabilization (Whatever that means...)
+  delay(1000);
+
+  // setup other registers:
+  R_CTSU->CTSUSDPRS = 0x63;
+  R_CTSU->CTSUSST = 0x10;
+  R_CTSU->CTSUCHAC[0] = 1;
+  R_CTSU->CTSUDCLKC = 0x30;
+
+  R_CTSU->CTSUMCH0 = 0;
+
+  // CTSUWR is event 0x42
+  // CTSURD is event 0x43
+  // CTSUFN is event 0x44
+  ctsurdEventLinkIndex = attachEventLinkInterrupt(0x43, CTSURD_handler);
+  ctsuwrEventLinkIndex = attachEventLinkInterrupt(0x42, CTSUWR_handler);
 }
 
 void handlePacket(char *buf) {
@@ -89,6 +126,8 @@ void handlePacket(char *buf) {
   }
   switch (reg) {
     case 0:
+      // reinterpret arg as decimal
+      arg = atoi(buf + argStart);
       Serial.print("Calling Command : ");
       Serial.println(arg);
       // regular commands
