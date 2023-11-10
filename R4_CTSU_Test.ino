@@ -23,26 +23,27 @@ void setup() {
   while (!Serial)
     ;
   Serial.println("\n\n\n*** Starting R4_CTSU_Test.ino***\n\n\n");
+  pinMode(13, OUTPUT);
   initialCTSUsetup();
   startCTSUmeasure();
 }
 
 void loop() {
   handleSerial();
-  if (newData) {
-    newData = false;
-    noInterrupts();
-    uint32_t s = sCounter;
-    uint32_t r = rCounter;
-    interrupts();
-    Serial.print("Result : ");
-    Serial.print(s);
-    Serial.print(" : ");
-    Serial.print(r);
-    Serial.print(" : ");
-    Serial.println();
-    // startCTSUmeasure();
-  }
+  // if (newData) {
+  //   newData = false;
+  //   noInterrupts();
+  //   uint32_t s = sCounter;
+  //   uint32_t r = rCounter;
+  //   interrupts();
+  //   Serial.print("Result : ");
+  //   Serial.print(s);
+  //   Serial.print(" : ");
+  //   Serial.print(r);
+  //   Serial.print(" : ");
+  //   Serial.println();
+  //   // startCTSUmeasure();
+  // }
 }
 
 void CTSUWR_handler() {
@@ -55,7 +56,12 @@ void CTSURD_handler() {
   resetEventLink(ctsurdEventLinkIndex);
   sCounter = R_CTSU->CTSUSC;
   rCounter = R_CTSU->CTSURC;
-  newData = true;
+  static bool oldTouch = false;
+  bool touch = (sCounter > 22000);
+  if(touch && !oldTouch){
+    digitalWrite(13, !digitalRead(13));
+  }
+  oldTouch = touch;
   startCTSUmeasure();
 }
 
