@@ -14,14 +14,15 @@ void setup() {
   Serial.println("\n\n\n*** Starting R4_CTSU_Test.ino***\n\n\n");
   pinMode(13, OUTPUT);
   initialCTSUsetup();
+  initAGT1();
   startCTSUmeasure();
 }
 
 void loop() {
   static bool oldTouch = false;
   static uint8_t ledState = LOW;
-  if(touch && !oldTouch){
-    ledState = 1-ledState;
+  if (touch && !oldTouch) {
+    ledState = 1 - ledState;
     digitalWrite(13, ledState);
   }
   oldTouch = touch;
@@ -45,8 +46,8 @@ void CTSURD_handler() {
 }
 
 void startCTSUmeasure() {
-  R_CTSU->CTSUMCH0 = 0; // select pin TS00
-  R_CTSU->CTSUCR0 = 1;  // software start measurement
+  R_CTSU->CTSUMCH0 = 0;  // select pin TS00
+  R_CTSU->CTSUCR0 = 3;   // software start measurement wait for trigger
 }
 
 void initialCTSUsetup() {
@@ -78,10 +79,10 @@ void initialCTSUsetup() {
   delay(1000);
 
   // setup other registers:
-  R_CTSU->CTSUSDPRS = 0x63; //recommended settings with noise reduction off
-  R_CTSU->CTSUSST = 0x10;  // data sheet says set value to this only
-  R_CTSU->CTSUCHAC[0] = 1;  // enable pin TS00 for measurement
-  R_CTSU->CTSUDCLKC = 0x30; // data sheet dictates these settings. 
+  R_CTSU->CTSUSDPRS = 0x63;  //recommended settings with noise reduction off
+  R_CTSU->CTSUSST = 0x10;    // data sheet says set value to this only
+  R_CTSU->CTSUCHAC[0] = 1;   // enable pin TS00 for measurement
+  R_CTSU->CTSUDCLKC = 0x30;  // data sheet dictates these settings.
 
   R_CTSU->CTSUMCH0 = 0;  // select pin TS00
 
@@ -90,4 +91,48 @@ void initialCTSUsetup() {
   // CTSUFN is event 0x44
   ctsurdEventLinkIndex = attachEventLinkInterrupt(0x43, CTSURD_handler);
   ctsuwrEventLinkIndex = attachEventLinkInterrupt(0x42, CTSUWR_handler);
+}
+
+void initAGT1() {
+  // enable the timer in Module Stop Control Register D
+  R_MSTP->MSTPCRD &= ~(1 << R_MSTP_MSTPCRD_MSTPD2_Pos);
+  //  Make sure timer is stopped while we adjust registers.
+  R_AGT1->AGTCR = 0;
+
+  // We're using R_AGT1, but all the positions and bitmasks are defined as R_AGT0
+  // set mode register 1
+  //(-) (TCK[2:0]) (TEDGPL) (TMOD[2:0])
+  //  Use TIMER mode with the LOCO clock (best we can do since Arduino doesn't have crystal for SOSC)
+  R_AGT1->AGTMR1 = (4 << R_AGT0_AGTMR1_TCK_Pos) | (0 << R_AGT0_AGTMR1_TMOD_Pos);
+  // mode register 2
+  // (LPM) (----) (CKS[2:0])
+  R_AGT1->AGTMR2 = 0;
+  // AGT I/O Control Register
+  // (TIOGT[1:0]) (TIPF[1:0]) (-) (TOE) (-) (TEDGSEL)
+  R_AGT1->AGTIOC = 0;
+  // Event Pin Select Register
+  // (-----) (EEPS) (--)
+  R_AGT1->AGTISR = 0;
+  // AGT Compare Match Function Select Register
+  // (-) (TOPOLB) (TOEB) (TCMEB) (-) (TOPOLA) (TOEA) (TCMEA)
+  R_AGT1->AGTCMSR = 0;
+  // AGT Pin Select Register
+  // (---) (TIES) (--) (SEL[1:0])
+  R_AGT1->AGTIOSEL = 0;
+
+  // setup 50ms period
+  R_AGT1->AGTMR1 = (4 << R_AGT0_AGTMR1_TCK_Pos) | (0 << R_AGT0_AGTMR1_TMOD_Pos);
+  R_AGT1->AGTMR2 = 0;
+  R_AGT1->AGT = 1638;
+
+  // Enable Event Link Controller in Master Stop Register
+  R_MSTP->MSTPCRC &= ~(1<<R_MSTP_MSTPCRC_MSTPC14_Pos);
+  // The ELC register for CTSU is ELSR18
+  // The event link signal for AGT1 underflow is 0x21
+  R_ELC->ELSR[18].HA = 0x21;
+  // enable ELC 
+  R_ELC->ELCR = (1 << R_ELC_ELCR_ELCON_Pos);
+
+  // start timer
+  R_AGT1->AGTCR = 1;
 }
