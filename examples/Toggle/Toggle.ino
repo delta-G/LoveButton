@@ -18,35 +18,35 @@ LoveButton  --  Capacitive Touch Sensing for the Love Pin on the Arduino UNO-R4 
 
      */
 
-#ifndef LOVEBUTTON_H
-#define LOVEBUTTON_H
+/*
+This example requires installing a 1uF ceramic capacitor between 
+pin 10 and ground on the Arduino UNO-R4 Minima.  
 
-#if !defined(ARDUINO_UNOR4_MINIMA)
-#error Sorry, but LoveButton only works on the Arduino UNO-R4 Minima
-#endif
+Try to ensure that the leads are kept as short as possible.  
 
-#include "Arduino.h"
-#include "EventLinkInterrupt.h"
-// LPF is 1uF ceramic between pin 10 and Ground
-// pin 10 is PORT 1 pin 12 on Minima
+Touch the small heart shaped blob of solder on the back of the board
+to toggle the built-in LED on pin 13.  
+*/
 
-class LoveButton {
-public:
-  uint16_t threshold;
-  LoveButton() : threshold(23000) {}
+#include "LoveButton.h"
 
-  void begin();
-  bool read();
-  char* debug();
-  void setThreshold(uint16_t t);
-};
+bool oldTouch = false;
+uint8_t ledState = LOW;
 
-extern LoveButton love;
-namespace LB_NAMESPACE {
-
-void startCTSUmeasure();
-void CTSURD_handler();
-void CTSUWR_handler();
+void setup() {
+  pinMode(13, OUTPUT);
+  love.begin();  // Start the capacitive sensor
 }
 
-#endif  //LOVEBUTTON_H
+void loop() {
+  // read the touch sensor and store the result
+  bool touch = love.read();
+  if (touch && !oldTouch) {
+    // if there's a new touch.
+    // toggle the led state
+    ledState = 1 - ledState;
+    digitalWrite(13, ledState);
+  }
+  oldTouch = touch;  // save the state for next time
+  delay(50);         // for debounce a little
+}
