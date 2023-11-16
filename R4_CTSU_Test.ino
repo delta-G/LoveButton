@@ -3,6 +3,7 @@
 // pin 10 is PORT 1 pin 12 on Minima
 #include "LoveButton.h"
 
+unsigned long debugDelay = 500;
 
 void setup() {
   Serial.begin(115200);
@@ -25,6 +26,11 @@ void loop() {
   }
   oldTouch = touch;
   delay(50);  // for debounce a little
+  static unsigned long lastTime = millis();
+  if (millis() - lastTime >= debugDelay){
+    Serial.println(love.debug());
+    lastTime = millis();
+  }
 }
 
 

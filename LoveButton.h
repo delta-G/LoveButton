@@ -28,16 +28,21 @@ LoveButton  --  Capacitive Touch Sensing for the Love Pin on the Arduino UNO-R4 
 
 class LoveButton {
 public:
-  LoveButton() {}
+  uint16_t threshold;
+  LoveButton() : threshold(23000) {}
 
   void begin();
   bool read();
+  char* debug();
+  void setThreshold(uint16_t t);
 };
 
 extern LoveButton love;
+namespace LB_NAMESPACE {
 
 void startCTSUmeasure();
 void CTSURD_handler();
 void CTSUWR_handler();
+}
 
-#endif //LOVEBUTTON_H
+#endif  //LOVEBUTTON_H

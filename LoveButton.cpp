@@ -22,8 +22,13 @@ LoveButton  --  Capacitive Touch Sensing for the Love Pin on the Arduino UNO-R4 
 
 LoveButton love;
 
+namespace LB_NAMESPACE {
+
 int ctsurdEventLinkIndex = 0;
 int ctsuwrEventLinkIndex = 0;
+
+volatile uint16_t sCounter;
+volatile uint16_t rCounter;
 
 volatile boolean touch;
 
@@ -36,10 +41,10 @@ void CTSUWR_handler() {
 
 void CTSURD_handler() {
   resetEventLink(ctsurdEventLinkIndex);
-  uint16_t sCounter = R_CTSU->CTSUSC;
+  sCounter = R_CTSU->CTSUSC;
   // Must read CTSURC even if we don't use it in order for the unit to move on
-  uint16_t rCounter = R_CTSU->CTSURC;
-  touch = (sCounter > 22000);
+  rCounter = R_CTSU->CTSURC;
+  touch = (sCounter - rCounter > love.threshold);
   startCTSUmeasure();
 }
 
@@ -48,8 +53,20 @@ void startCTSUmeasure() {
   R_CTSU->CTSUCR0 = 3;   // software start measurement wait for trigger
 }
 
+}
+
+char* LoveButton::debug() {
+  static char rv[40];
+  sprintf(rv, "rc= %d : sc= %d : diff= %d", LB_NAMESPACE::rCounter, LB_NAMESPACE::sCounter, (LB_NAMESPACE::sCounter - LB_NAMESPACE::rCounter));
+  return rv;
+}
+
 bool LoveButton::read() {
-  return touch;
+  return LB_NAMESPACE::touch;
+}
+
+void LoveButton::setThreshold(uint16_t t){
+  threshold = t;
 }
 
 void LoveButton::begin() {
@@ -91,8 +108,8 @@ void LoveButton::begin() {
   // CTSUWR is event 0x42
   // CTSURD is event 0x43
   // CTSUFN is event 0x44
-  ctsurdEventLinkIndex = attachEventLinkInterrupt(0x43, CTSURD_handler);
-  ctsuwrEventLinkIndex = attachEventLinkInterrupt(0x42, CTSUWR_handler);
+  LB_NAMESPACE::ctsurdEventLinkIndex = attachEventLinkInterrupt(0x43, LB_NAMESPACE::CTSURD_handler);
+  LB_NAMESPACE::ctsuwrEventLinkIndex = attachEventLinkInterrupt(0x42, LB_NAMESPACE::CTSUWR_handler);
   // Enable Event Link Controller in Master Stop Register
   R_MSTP->MSTPCRC &= ~(1 << R_MSTP_MSTPCRC_MSTPC14_Pos);
   // The ELC register for CTSU is ELSR18
@@ -101,5 +118,5 @@ void LoveButton::begin() {
   // enable ELC
   R_ELC->ELCR = (1 << R_ELC_ELCR_ELCON_Pos);
 
-  startCTSUmeasure();
+  LB_NAMESPACE::startCTSUmeasure();
 }
