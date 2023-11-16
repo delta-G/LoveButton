@@ -21,7 +21,7 @@
  If the sensor doesn't work, then use the debug method to see what numbers you are 
  getting in the diff reading when touching or not touching.  
  The default threshold is set to 23000, but if you find that your numbers are different
- then you can call love.setThreshold(###) where ### is the threshold you want to use.  
+ then you can call `love.setThreshold(NNN)` where NNN is the threshold you want to use.  
 
 
 
