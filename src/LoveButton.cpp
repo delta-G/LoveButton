@@ -57,7 +57,9 @@ void startCTSUmeasure() {
 
 char* LoveButton::debug() {
   static char rv[40];
+  noInterrupts();
   sprintf(rv, "rc= %d : sc= %d : diff= %d", LB_NAMESPACE::rCounter, LB_NAMESPACE::sCounter, (LB_NAMESPACE::sCounter - LB_NAMESPACE::rCounter));
+  interrupts();
   return rv;
 }
 
@@ -70,53 +72,57 @@ void LoveButton::setThreshold(uint16_t t){
 }
 
 void LoveButton::begin() {
-  // Follow the flow chart Fig 41.9
-  // Step 1: Discharge LPF (set TSCAP as OUTPUT LOW.)
-  R_PFS->PORT[1].PIN[12].PmnPFS = (1 << R_PFS_PORT_PIN_PmnPFS_PDR_Pos);
-  delay(1000);
+  static bool hasBegun = false;
+  if(!hasBegun){
+    hasBegun = true;
+     // Follow the flow chart Fig 41.9
+     // Step 1: Discharge LPF (set TSCAP as OUTPUT LOW.)
+     R_PFS->PORT[1].PIN[12].PmnPFS = (1 << R_PFS_PORT_PIN_PmnPFS_PDR_Pos);
+     delay(100);
 
-  // Step 2: Setup I/O port PmnPFR registers
-  // Love pin is 204 == TS00
-  // set 204 pin to TS00 function
-  R_PFS->PORT[2].PIN[4].PmnPFS = (1 << R_PFS_PORT_PIN_PmnPFS_PMR_Pos) | (12 << R_PFS_PORT_PIN_PmnPFS_PSEL_Pos);
-  // set TSCAP pin to TSCAP function
-  R_PFS->PORT[1].PIN[12].PmnPFS = (1 << R_PFS_PORT_PIN_PmnPFS_PMR_Pos) | (12 << R_PFS_PORT_PIN_PmnPFS_PSEL_Pos);
+     // Step 2: Setup I/O port PmnPFR registers
+     // Love pin is 204 == TS00
+     // set 204 pin to TS00 function
+     R_PFS->PORT[2].PIN[4].PmnPFS = (1 << R_PFS_PORT_PIN_PmnPFS_PMR_Pos) | (12 << R_PFS_PORT_PIN_PmnPFS_PSEL_Pos);
+     // set TSCAP pin to TSCAP function
+     R_PFS->PORT[1].PIN[12].PmnPFS = (1 << R_PFS_PORT_PIN_PmnPFS_PMR_Pos) | (12 << R_PFS_PORT_PIN_PmnPFS_PSEL_Pos);
 
-  // Step 3: Enable CTSU in MSTPCRC bit MSTPC3 to 0
-  R_MSTP->MSTPCRC &= ~(1 << R_MSTP_MSTPCRC_MSTPC3_Pos);
+     // Step 3: Enable CTSU in MSTPCRC bit MSTPC3 to 0
+     R_MSTP->MSTPCRC &= ~(1 << R_MSTP_MSTPCRC_MSTPC3_Pos);
 
-  // Step 4: Set CTSU Power Supply (CTSUCR1 register)
-  R_CTSU->CTSUCR1 = 0;  // all 0's work for now
+     // Step 4: Set CTSU Power Supply (CTSUCR1 register)
+     R_CTSU->CTSUCR1 = 0;  // all 0's work for now
 
-  // Step 5: Set CTSU Base Clock (CTSUCR1 and CTSUSO1 registers)
-  R_CTSU->CTSUSO1 = 0x0F00;
+     // Step 5: Set CTSU Base Clock (CTSUCR1 and CTSUSO1 registers)
+     R_CTSU->CTSUSO1 = 0x0F00;
 
-  // Step 6: Power On CTSU (set bits CTSUPON and CTSUCSW in CTSUCR1 at the same time)
-  R_CTSU->CTSUCR1 = 3;
+     // Step 6: Power On CTSU (set bits CTSUPON and CTSUCSW in CTSUCR1 at the same time)
+     R_CTSU->CTSUCR1 = 3;
 
-  // Step 7: Wait for stabilization (Whatever that means...)
-  delay(1000);
+     // Step 7: Wait for stabilization (Whatever that means...)
+     delay(100);
 
-  // setup other registers:
-  R_CTSU->CTSUSDPRS = 0x63;  //recommended settings with noise reduction off
-  R_CTSU->CTSUSST = 0x10;    // data sheet says set value to this only
-  R_CTSU->CTSUCHAC[0] = 1;   // enable pin TS00 for measurement
-  R_CTSU->CTSUDCLKC = 0x30;  // data sheet dictates these settings.
+     // setup other registers:
+     R_CTSU->CTSUSDPRS = 0x63;  //recommended settings with noise reduction off
+     R_CTSU->CTSUSST = 0x10;    // data sheet says set value to this only
+     R_CTSU->CTSUCHAC[0] = 1;   // enable pin TS00 for measurement
+     R_CTSU->CTSUDCLKC = 0x30;  // data sheet dictates these settings.
 
-  R_CTSU->CTSUMCH0 = 0;  // select pin TS00
+     R_CTSU->CTSUMCH0 = 0;  // select pin TS00
 
-  // CTSUWR is event 0x42
-  // CTSURD is event 0x43
-  // CTSUFN is event 0x44
-  LB_NAMESPACE::ctsurdEventLinkIndex = attachEventLinkInterrupt(0x43, LB_NAMESPACE::CTSURD_handler);
-  LB_NAMESPACE::ctsuwrEventLinkIndex = attachEventLinkInterrupt(0x42, LB_NAMESPACE::CTSUWR_handler);
-  // Enable Event Link Controller in Master Stop Register
-  R_MSTP->MSTPCRC &= ~(1 << R_MSTP_MSTPCRC_MSTPC14_Pos);
-  // The ELC register for CTSU is ELSR18
-  // The event link signal for AGT0 underflow is 0x1E
-  R_ELC->ELSR[18].HA = 0x1E;
-  // enable ELC
-  R_ELC->ELCR = (1 << R_ELC_ELCR_ELCON_Pos);
+     // CTSUWR is event 0x42
+     // CTSURD is event 0x43
+     // CTSUFN is event 0x44
+     LB_NAMESPACE::ctsurdEventLinkIndex = attachEventLinkInterrupt(0x43, LB_NAMESPACE::CTSURD_handler);
+     LB_NAMESPACE::ctsuwrEventLinkIndex = attachEventLinkInterrupt(0x42, LB_NAMESPACE::CTSUWR_handler);
+     // Enable Event Link Controller in Master Stop Register
+     R_MSTP->MSTPCRC &= ~(1 << R_MSTP_MSTPCRC_MSTPC14_Pos);
+     // The ELC register for CTSU is ELSR18
+     // The event link signal for AGT0 underflow is 0x1E
+     R_ELC->ELSR[18].HA = 0x1E;
+     // enable ELC
+     R_ELC->ELCR = (1 << R_ELC_ELCR_ELCON_Pos);
 
-  LB_NAMESPACE::startCTSUmeasure();
+     LB_NAMESPACE::startCTSUmeasure();
+  }
 }
