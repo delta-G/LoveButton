@@ -3,6 +3,8 @@
 LoveButton  --  Capacitive Touch Sensing for the Love Pin on the Arduino UNO-R4 Minima
      Copyright (C) 2023  David C.
 
+     R4-Wifi compatability added by Winnie S.
+
      This program is free software: you can redistribute it and/or modify
      it under the terms of the GNU General Public License as published by
      the Free Software Foundation, either version 3 of the License, or
@@ -21,14 +23,13 @@ LoveButton  --  Capacitive Touch Sensing for the Love Pin on the Arduino UNO-R4 
 #ifndef LOVEBUTTON_H
 #define LOVEBUTTON_H
 
-#if !defined(ARDUINO_UNOR4_MINIMA)
-#error Sorry, but LoveButton only works on the Arduino UNO-R4 Minima
+#if !defined(ARDUINO_UNOR4_WIFI) && !defined(ARDUINO_UNOR4_MINIMA)
+#error Sorry, but LoveButton only works on the Arduino UNO-R4 Minima and Arduino UNO-R4 WiFi
 #endif
 
 #include "Arduino.h"
 #include "EventLinkInterrupt.h"
-// LPF is 1uF ceramic between pin 10 and Ground
-// pin 10 is PORT 1 pin 12 on Minima
+// LPF is 1uF ceramic between pin 10 and Ground on Minima or between pin 7 and Ground on Wifi. This is PORT 1 pin 12
 
 class LoveButton {
 public:

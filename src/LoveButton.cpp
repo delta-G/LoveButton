@@ -3,6 +3,8 @@
 LoveButton  --  Capacitive Touch Sensing for the Love Pin on the Arduino UNO-R4 Minima
      Copyright (C) 2023  David C.
 
+     R4-Wifi compatability added by Winnie S.
+
      This program is free software: you can redistribute it and/or modify
      it under the terms of the GNU General Public License as published by
      the Free Software Foundation, either version 3 of the License, or
@@ -20,6 +22,22 @@ LoveButton  --  Capacitive Touch Sensing for the Love Pin on the Arduino UNO-R4 
 
 #include "LoveButton.h"
 
+#ifdef ARDUINO_UNOR4_WIFI
+#define CTSUMCH0_LOVE  0x1B //select pin TS27
+#define LOVE_PORT 1
+#define LOVE_PIN 13 //Love is on P113
+#define CTSUCHAC_IDX 3 //TS27 is on CTSUCHAC[3] = 1 << 3
+#define CTSUCHAC_VALUE 1<<3
+#endif
+
+#ifdef ARDUINO_UNOR4_MINIMA
+#define CTSUMCH0_LOVE  0 // select pin TS0
+#define LOVE_PORT 2
+#define LOVE_PIN 4 //Love is on P204
+#define CTSUCHAC_IDX 0 //TS00 is on CTSUCHAC[0] = 1
+#define CTSUCHAC_VALUE 1
+#endif
+
 LoveButton love;
 
 namespace LB_NAMESPACE {
@@ -35,7 +53,7 @@ volatile boolean touch;
 void CTSUWR_handler() {
   // we need this interrupt to trigger the CTSU to go to state 3.
   resetEventLink(ctsuwrEventLinkIndex);
-  R_CTSU->CTSUMCH0 = 0;
+  R_CTSU->CTSUMCH0 = CTSUMCH0_LOVE;
   R_CTSU->CTSUSO1 = 0x0F00;
 }
 
@@ -49,7 +67,7 @@ void CTSURD_handler() {
 }
 
 void startCTSUmeasure() {
-  R_CTSU->CTSUMCH0 = 0;  // select pin TS00
+  R_CTSU->CTSUMCH0 = CTSUMCH0_LOVE;  // select pin TS00 for Minima, or TS27 for WiFi
   R_CTSU->CTSUCR0 = 3;   // software start measurement wait for trigger
 }
 
@@ -81,9 +99,8 @@ void LoveButton::begin() {
      delay(100);
 
      // Step 2: Setup I/O port PmnPFR registers
-     // Love pin is 204 == TS00
-     // set 204 pin to TS00 function
-     R_PFS->PORT[2].PIN[4].PmnPFS = (1 << R_PFS_PORT_PIN_PmnPFS_PMR_Pos) | (12 << R_PFS_PORT_PIN_PmnPFS_PSEL_Pos);
+     // Set Love pin to TS function
+     R_PFS->PORT[LOVE_PORT].PIN[LOVE_PIN].PmnPFS = (1 << R_PFS_PORT_PIN_PmnPFS_PMR_Pos) | (12 << R_PFS_PORT_PIN_PmnPFS_PSEL_Pos);
      // set TSCAP pin to TSCAP function
      R_PFS->PORT[1].PIN[12].PmnPFS = (1 << R_PFS_PORT_PIN_PmnPFS_PMR_Pos) | (12 << R_PFS_PORT_PIN_PmnPFS_PSEL_Pos);
 
@@ -105,10 +122,10 @@ void LoveButton::begin() {
      // setup other registers:
      R_CTSU->CTSUSDPRS = 0x63;  //recommended settings with noise reduction off
      R_CTSU->CTSUSST = 0x10;    // data sheet says set value to this only
-     R_CTSU->CTSUCHAC[0] = 1;   // enable pin TS00 for measurement
+     R_CTSU->CTSUCHAC[CTSUCHAC_IDX] = CTSUCHAC_VALUE;   // enable pin TS00 for measurement
      R_CTSU->CTSUDCLKC = 0x30;  // data sheet dictates these settings.
 
-     R_CTSU->CTSUMCH0 = 0;  // select pin TS00
+     R_CTSU->CTSUMCH0 = CTSUMCH0_LOVE;  // select pin TS00
 
      // CTSUWR is event 0x42
      // CTSURD is event 0x43
