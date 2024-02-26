@@ -3,6 +3,8 @@
 LoveButton  --  Capacitive Touch Sensing for the Love Pin on the Arduino UNO-R4 Minima
      Copyright (C) 2023  David C.
 
+     R4-Wifi compatability added by Winnie S.
+
      This program is free software: you can redistribute it and/or modify
      it under the terms of the GNU General Public License as published by
      the Free Software Foundation, either version 3 of the License, or
