@@ -26,7 +26,7 @@ LoveButton  --  Capacitive Touch Sensing for the Love Pin on the Arduino UNO-R4 
 #define CTSUMCH0_LOVE  0x1B //select pin TS27
 #define LOVE_PORT 1
 #define LOVE_PIN 13 //Love is on P113
-#define CTSUCHAC_IDX 3 //TS27 is on CTSUCHAC_IDX[3] = 1 << 3
+#define CTSUCHAC_IDX 3 //TS27 is on CTSUCHAC[3] = 1 << 3
 #define CTSUCHAC_VALUE 1<<3
 #endif
 
@@ -34,7 +34,7 @@ LoveButton  --  Capacitive Touch Sensing for the Love Pin on the Arduino UNO-R4 
 #define CTSUMCH0_LOVE  0 // select pin TS0
 #define LOVE_PORT 2
 #define LOVE_PIN 4 //Love is on P204
-#define CTSUCHAC_IDX 0 //TS00 is on CTSUCHAC_IDX[0] = 1
+#define CTSUCHAC_IDX 0 //TS00 is on CTSUCHAC[0] = 1
 #define CTSUCHAC_VALUE 1
 #endif
 
