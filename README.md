@@ -1,7 +1,7 @@
 # LoveButton
 
 > This library turns the Love Pin (the little heart shaped blob of 
-> solder on the back of the Arduino UNO-R4 Minima) into a capacitive 
+> solder on the back of the Arduino UNO-R4 Minima or Arduino UNO-R4 WiFi) into a capacitive 
 > touch sensor.
 <br>
 # It includes a pre-created instance called love
